@@ -1,4 +1,4 @@
-# fetchers.py  (replace fetch_company_jobs with this version)
+# fetchers.py
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timezone
@@ -6,7 +6,9 @@ from urllib.parse import urljoin, urlparse
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-# create a session with retries
+# -------------------------
+# Session with retries
+# -------------------------
 def requests_session_with_retries(total_retries=3, backoff=1, status_forcelist=(429, 500, 502, 503, 504)):
     s = requests.Session()
     retries = Retry(
@@ -20,6 +22,81 @@ def requests_session_with_retries(total_retries=3, backoff=1, status_forcelist=(
     s.mount("http://", adapter)
     s.headers.update({"User-Agent": "Mozilla/5.0 (compatible; JobBot/1.0; +https://github.com/)"})
     return s
+
+# -------------------------
+# Indeed fetcher (India)
+# -------------------------
+def fetch_indeed(query="Azure Data Engineer", location="Hyderabad"):
+    """
+    Fetch job cards from in.indeed.com search results (basic scraping).
+    Returns list of job dicts: {source, title, company, link, snippet, posted_at}
+    """
+    base = "https://in.indeed.com/jobs"
+    params = {"q": query, "l": location}
+    session = requests_session_with_retries()
+
+    try:
+        resp = session.get(base, params=params, timeout=20)
+        resp.raise_for_status()
+    except Exception as e:
+        print("Error fetching Indeed jobs:", e)
+        return []
+
+    try:
+        soup = BeautifulSoup(resp.text, "html.parser")
+    except Exception as e:
+        print("Error parsing Indeed HTML:", e)
+        return []
+
+    jobs = []
+    # different Indeed versions use different classes; try a few selectors
+    card_selectors = [
+        ".jobsearch-SerpJobCard",  # older
+        ".result",                 # common generic
+        "a.tapItem"                # newer mobile/search
+    ]
+
+    cards = []
+    for sel in card_selectors:
+        found = soup.select(sel)
+        if found:
+            cards = found
+            break
+
+    for card in cards:
+        # title
+        title_tag = card.select_one("h2.jobTitle") or card.select_one(".jobTitle") or card.select_one(".title")
+        title = title_tag.get_text(strip=True) if title_tag else ""
+
+        # company
+        company_tag = card.select_one(".companyName") or card.select_one(".company")
+        company = company_tag.get_text(strip=True) if company_tag else ""
+
+        # snippet/summary
+        snippet_tag = card.select_one(".job-snippet") or card.select_one(".summary")
+        snippet = snippet_tag.get_text(" ", strip=True) if snippet_tag else ""
+
+        # link
+        link_tag = card.select_one("a") or card.select_one("a.jobtitle")
+        link = ""
+        if link_tag and link_tag.get("href"):
+            href = link_tag.get("href").strip()
+            # many Indeed links are relative
+            if href.startswith("http"):
+                link = href
+            else:
+                link = urljoin("https://in.indeed.com", href)
+
+        jobs.append({
+            "source": "indeed",
+            "title": title,
+            "company": company,
+            "link": link,
+            "snippet": snippet,
+            "posted_at": datetime.now(timezone.utc).isoformat()
+        })
+
+    return jobs
 
 # ------------------------------------------------------------
 # Fetch Azure Data Engineer jobs from company career pages (robust)
@@ -44,7 +121,6 @@ def fetch_company_jobs(url, session=None):
 
     try:
         r = session.get(url, timeout=20)
-        # raise_for_status() can throw HTTPError for 4xx/5xx, we catch below
         r.raise_for_status()
     except Exception as e:
         # log a concise message and return empty list
@@ -66,7 +142,10 @@ def fetch_company_jobs(url, session=None):
 
         # normalize relative links
         if not href.startswith("http"):
-            href = urljoin(url, href)
+            try:
+                href = urljoin(url, href)
+            except Exception:
+                continue
 
         lowered = (text + " " + href).lower()
         if any(keyword in lowered for keyword in [
