@@ -1,0 +1,87 @@
+# ---- India - Large product / well-paying ----
+https://careers.microsoft.com
+https://www.amazon.jobs
+https://careers.google.com
+https://www.adobe.com/careers.html
+https://www.salesforce.com/company/careers
+https://www.apple.com/careers
+https://careers.netflix.com
+https://www.intuit.com/careers
+https://www.oracle.com/corporate/careers
+https://www.sap.com/careers
+
+# ---- India - Top product / SaaS (Bengaluru/Hyderabad) ----
+https://careers.freshworks.com
+https://www.razorpay.com/careers
+https://www.chargebee.com/careers
+https://www.browserstack.com/careers
+https://www.postman.com/careers
+https://www.zoho.com/careers
+https://razorpay.com/careers
+https://www.flipkartcareers.com
+https://careers.swiggy.com
+https://careers.ola.com
+https://careers.delhivery.com
+https://careers.inmobi.com
+https://www.drift.com/careers
+https://www.sensorberg.com/careers
+
+# ---- India - Fast-growing SaaS / mid-size (good pay) ----
+https://careers.naukri.com
+https://careers.meesho.com
+https://www.ajio.com/careers
+https://www.gupshup.io/careers
+https://www.incred.com/careers
+https://careers.clear.ai
+https://www.hiverhq.com/careers
+https://careers.postman.com
+https://www.twinthread.com/careers
+
+# ---- Global product companies (visa sponsorship common) ----
+https://careers.microsoft.com
+https://careers.google.com
+https://www.amazon.jobs
+https://careers.meta.com
+https://careers.microsoft.com/us/en
+https://careers.dropbox.com
+https://careers.airbnb.com
+https://careers.uber.com
+https://careers.linkedin.com
+https://careers.salesforce.com
+https://careers.atlassian.com
+https://www.adobe.com/careers.html
+https://careers.spotify.com
+https://careers.shopify.com
+https://careers.snyk.io
+https://careers.hashicorp.com
+
+# ---- Europe / UK / Canada / AUS product firms (often sponsor for senior roles) ----
+https://careers.transferwise.com
+https://careers.skyscanner.net
+https://careers.booking.com
+https://careers.datadog.com
+https://careers.mongodb.com
+https://careers.sage.com
+https://careers.canva.com
+https://careers.sumo.com
+https://careers.twilio.com
+https://careers.splunk.com
+https://www.rollingcredits.io/careers
+
+# ---- Additional good product/scale-ups to monitor ----
+https://www.posthog.com/careers
+https://www.confluent.io/careers
+https://careers.coupang.com
+https://careers.rudderstack.com
+https://careers.retool.com
+https://careers.checkout.com
+https://careers.segment.com
+https://careers.databricks.com
+https://www.couchbase.com/careers
+https://www.kafkalabs.co/careers
+
+# ---- Add local product companies you like (examples) ----
+https://careers.freshworks.com
+https://www.lenskart.com/careers
+https://careers.zomato.com
+https://www.mobikwik.com/careers
