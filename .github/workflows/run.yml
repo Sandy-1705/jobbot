@@ -1,0 +1,29 @@
+name: JobBot Runner
+on:
+  schedule:
+    - cron: '0 * * * *'   # run hourly
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r jobbot/requirements.txt
+
+      - name: Run JobBot
+        env:
+          SMTP_USER: ${{ Sandy-1705 }}
+          SMTP_PASS: ${{ Ss@170401 }}
+        run: |
+          python jobbot/run_cycle.py
