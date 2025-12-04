@@ -4,7 +4,7 @@ import yaml
 import time
 from fetchers import fetch_indeed, fetch_company_jobs
 from matcher import score_job
-from tailor_resume import generate_for_job
+from tailor_resume import generate_tailored_copy
 from emailer import send_email
 
 # Load config
@@ -74,7 +74,7 @@ def main_once():
 
     for job in good:
         try:
-            text_resume, pdf_path = generate_for_job(job)
+            text_resume, pdf_path = generate_tailored_copy(job)
             subject = f"[JobBot] {job.get('title','')} @ {job.get('company','')}  Score:{job.get('score',0)}"
             body = (
                 f"Role: {job.get('title','')}\n"
