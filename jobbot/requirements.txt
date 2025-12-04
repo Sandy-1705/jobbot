@@ -1,0 +1,6 @@
+requests
+beautifulsoup4
+jinja2
+reportlab
+pyyaml
+python-dotenv
