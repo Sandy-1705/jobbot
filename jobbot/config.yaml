@@ -1,0 +1,28 @@
+email: "jvskdeepu@gmail.com"
+
+location_priority:
+  - "Hyderabad"
+  - "India"
+  - "Global"
+
+max_applicants_for_low: 30
+
+product_company_only: true
+
+global_allow_visa_sponsor: true
+
+job_sources:
+  - indeed
+  - company_careers
+
+score_threshold: 30
+
+required_keywords:
+  - azure
+  - databricks
+  - data factory
+  - pyspark
+  - spark
+  - sql
+  - delta lake
+  - synapse
