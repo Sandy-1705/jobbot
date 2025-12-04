@@ -20,7 +20,13 @@ def requests_session_with_retries(total_retries=3, backoff=1, status_forcelist=(
     adapter = HTTPAdapter(max_retries=retries)
     s.mount("https://", adapter)
     s.mount("http://", adapter)
-    s.headers.update({"User-Agent": "Mozilla/5.0 (compatible; JobBot/1.0; +https://github.com/)"})
+    s.headers.update({
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://www.google.com/",
+})
+
     return s
 
 # -------------------------
