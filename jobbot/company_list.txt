@@ -1,67 +1,29 @@
-# ---- Hyderabad / strong local product presence (prioritise) ----
-https://careers.microsoft.com
+# Hyderabad / India product-first (priority)
 https://www.amazon.jobs/en/locations/hyderabad
-https://careers.google.com/locations/hyderabad
-https://www.salesforce.com/company/careers/
-https://careers.oracle.com
+https://careers.microsoft.com/us/en/search-results
+https://careers.google.com/jobs/results/?distance=50&location=Hyderabad,%20India
+https://careers.dell.com/
 https://www.adobe.com/careers.html
-https://careers.paypal.com
-https://careers.dell.com
-https://careers.browserstack.com
-https://careers.nvidia.com
-https://careers.quickwork.co
-https://careers.clear.ai
-https://careers.inmobi.com
-https://careers.zoho.com
-https://careers.rivigo.com
-https://careers.capillarytech.com
+https://careers.oracle.com/
+https://browserstack.com/careers
+https://careers.nvidia.com/
+https://www.linkedin.com/company/paypal/jobs/    # Linkedin job list (fallback)
+https://www.linkedin.com/company/zoho-corp/jobs/
 
-# ---- India product / SaaS / scaleups (PAN-India) ----
+# India / product & SaaS
 https://careers.freshworks.com
-https://www.postman.com/company/careers/
+https://careers.postman.com
 https://careers.fylehq.com
+https://careers.delhivery.com
 https://careers.zomato.com
 https://careers.swiggy.com
-https://careers.delhivery.com
-https://careers.naukri.com
-https://careers.cleartax.in
-https://careers.rudderstack.com
-https://careers.checkout.com
-https://careers.sumo.com
-https://careers.gojek.io
-https://careers.infosys.com/careers (product teams/engineering)
-https://careers.tcs.com (product/engineering teams)
-https://careers.hcltech.com (product groups)
 
-# ---- Global product companies (visa sponsorship more likely for senior roles) ----
-https://careers.microsoft.com
-https://careers.apple.com
-https://careers.google.com
-https://careers.amazon.jobs
-https://www.facebookcareers.com
-https://careers.netflix.com
-https://careers.dropbox.com
-https://www.atlassian.com/company/careers
+# Global product companies (senior hires, sponsor-friendly)
 https://careers.databricks.com
 https://careers.snowflake.com
 https://careers.datadoghq.com
 https://careers.hashicorp.com
 https://careers.twilio.com
 https://careers.stripe.com
-https://careers.checkout.com
-https://careers.skyscanner.net
-https://careers.spotify.com
-https://careers.spotifyjobs.com
-https://careers.rudderstack.com
-https://careers.coupang.com
-https://careers.checkout.com
-
-# ---- Additional product / infra / analytics firms to monitor ----
-https://www.kafkalabs.co/careers
-https://careers.splunk.com
-https://careers.snyk.io
-https://careers.sumologic.com
-https://careers.hashicorp.com
-https://careers.heroku.com
-https://careers.cloudflare.com
-https://careers.twilio.com
+https://careers.atlassian.com
+https://careers.dropbox.com
