@@ -1,77 +1,71 @@
 # matcher.py
-import yaml
-from urllib.parse import urlparse
+import re
 
-# Load configuration
-cfg = yaml.safe_load(open("jobbot/config.yaml"))
+SENIOR_KEYWORDS = ["senior", "sr.", "lead", "principal", "staff", "manager", "architect"]
+JUNIOR_KEYWORDS = ["intern", "junior", "jr.", "trainee", "fresher", "entry"]
 
-def is_product_company(job):
-    # Simple heuristic: check domain or company name for known product company keywords
-    domain = urlparse(job.get("link", "")).netloc.lower()
-    company = job.get("company", "").lower()
-    product_signals = [
-        "product", "saas", "startup", "platform", "stripe", "airbnb",
-        "google", "microsoft", "amazon", "chargebee", "razorpay",
-        "browserstack", "freshworks", "postman", "flipkart", "zoho"
-    ]
-    for s in product_signals:
-        if s in domain or s in company:
-            return True
-    return False
+SKILL_KEYWORDS = {
+    "azure": 20,
+    "databricks": 18,
+    "data factory": 16,
+    "synapse": 14,
+    "delta lake": 12,
+    "pyspark": 14,
+    "spark": 12,
+    "python": 8,
+    "sql": 8,
+    "etl": 8,
+    "ci/cd": 4,
+    "lakehouse": 6
+}
 
-def location_score(job):
-    title = job.get("title", "").lower()
-    link = job.get("link", "").lower()
+TITLE_BONUS = 40   # exact 'data engineer' in title
+SENIOR_BONUS = 25  # senior-level titles get boost
+LOCATION_BONUS = 20 # Hyderabad preferred
+SPONSOR_BONUS = 20  # if job mentions sponsor/visa/relocation
+
+def score_job(job, user_years=5):
+    text = (job.get("title","") + " " + job.get("snippet","") + " " + job.get("company","")).lower()
     score = 0
-    for i, loc in enumerate(cfg.get("location_priority", [])):
-        if loc.lower() in title or loc.lower() in link:
-            # earlier locations in the list get higher weight
-            score += (len(cfg["location_priority"]) - i) * 12
-    return score
+    matched = []
 
-def visa_score(job):
-    snippet = job.get("snippet", "").lower()
-    if not cfg.get("global_allow_visa_sponsor", True):
-        return 0
-    # boost if job mentions visa/relocation/sponsorship
-    for kw in ["visa", "sponsor", "sponsorship", "relocation", "work permit"]:
-        if kw in snippet:
-            return 20
-    return 0
+    # Title exact match boost
+    if re.search(r"\bdata engineer\b", job.get("title","").lower()):
+        score += TITLE_BONUS
+        matched.append("title:data engineer")
 
-def keyword_score(job):
-    text = (job.get("title", "") + " " + job.get("snippet", "")).lower()
-    score = 0
-    for kw in cfg.get("required_keywords", []):
-        if kw.lower() in text:
-            score += 6
-    return score
+    # Seniority
+    if any(k in text for k in SENIOR_KEYWORDS):
+        score += SENIOR_BONUS
+        matched.append("seniority:senior")
+    if any(k in text for k in JUNIOR_KEYWORDS):
+        score -= 30  # avoid juniors
+        matched.append("seniority:junior")
 
-def low_applicant_score(job):
-    # If applicant count present and low, reward it.
-    applicants = job.get("applicants")
-    if applicants is None:
-        return 0
-    try:
-        if int(applicants) <= int(cfg.get("max_applicants_for_low", 30)):
-            return 10
-    except:
-        return 0
-    return 0
+    # Skills
+    for k, w in SKILL_KEYWORDS.items():
+        if k in text:
+            score += w
+            matched.append(k)
 
-def score_job(job):
-    score = 0
-    score += location_score(job)
-    score += keyword_score(job)
-    score += visa_score(job)
-    score += low_applicant_score(job)
+    # Location preference
+    if "hyderabad" in text or "hyderabad" in (job.get("location","") or "").lower():
+        score += LOCATION_BONUS
+        matched.append("location:hyderabad")
 
-    # Product company boost (only if config allows preference)
-    if cfg.get("product_company_only", True) and is_product_company(job):
-        score += 20
-    # Otherwise a small neutral boost for product signals even if not strict
-    elif is_product_company(job):
-        score += 10
+    # Visa / sponsorship detectable
+    if any(x in text for x in ("visa", "sponsor", "sponsorship", "relocation")):
+        score += SPONSOR_BONUS
+        matched.append("visa")
 
-    job["score"] = score
+    # Prefer product company domains (optional): bump if company string contains product names
+    # e.g., you can maintain a list of product domains and check here (left out for speed)
+
+    # small base: presence of any word 'data' or 'engineer'
+    if "data" in text or "engineer" in text:
+        score += 2
+
+    # Attach score and matched keywords to job object for later usage
+    job["score"] = int(score)
+    job["matched_keywords"] = matched
     return job
