@@ -27,4 +27,4 @@ required_keywords:
   - delta lake
   - synapse
 
-score_threshold: 15
+score_threshold: 10
