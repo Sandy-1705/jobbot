@@ -1,0 +1,48 @@
+SANDEEP SHARMA J V
+Hyderabad, Telangana
++91 9441549932
+jvskdeepu@gmail.com
+LinkedIn: https://www.linkedin.com/in/sandeep-sharma17/
+
+SUMMARY
+Azure Data Engineer with 5+ years of experience building cloud data platforms, ETL/ELT pipelines, and scalable data solutions. Experienced with Azure Data Factory, Databricks, Delta Lake, Synapse, SQL, and PySpark. Skilled at designing reliable, automated, and secure data workflows that support analytics, reporting, and machine learning. Strong at performance tuning, data modeling, and delivering production-grade data platforms.
+
+CORE SKILLS
+Cloud & Data Platforms: Azure Data Factory, Azure Databricks, Data Lake Storage Gen2, Synapse, Azure SQL Database, Key Vault, Blob Storage
+Data Engineering: ETL/ELT, Delta Lake, Lakehouse architecture, Data Modeling, Data Quality, Metadata management, Unity catalog, Hive
+Languages & Tools: SQL, PySpark, Python, GitHub, CI/CD, GitHub Actions, Jira, ServiceNow
+Other: Schema evolution, partitioning strategies, performance optimization, monitoring and alerting
+
+PROFESSIONAL EXPERIENCE
+
+HCL Technologies — Hyderabad, India
+Software Engineer (Azure Data Engineer)
+Dec 2020 – Present
+- Designed and implemented end-to-end ETL/ELT pipelines using Azure Data Factory and Databricks to ingest, transform, and deliver data for analytics and reporting.
+- Built Delta Lake tables and maintained lakehouse architecture to ensure data consistency, ACID transactions, and scalable storage.
+- Develops reusable PySpark and Python frameworks for data transformation, schema evolution, validation, and automated processing.
+- Implemented CI/CD pipelines using GitHub Actions for automated deployments and infrastructure-as-code workflows.
+- Optimized Spark jobs and SQL queries by tuning partitions, caching, and query plans to reduce runtime and cost.
+- Automated data validation, dashbaord, reconciliation, and monitoring to ensure data quality and compliance with enterprise policies.
+- Collaborated with data scientists, analysts, and solution architects to design cost-effective and scalable cloud data platforms.
+
+Technical Trainee
+Sep 2019 – Dec 2020
+- Completed hands-on training in database administration, Active Directory, networking, and Windows system management.
+- Delivered a live enterprise project involving cloud fundamentals and system integration.
+- Built foundational knowledge in data engineering principles and cloud migration strategies.
+
+EDUCATION
+Bachelor of Science: Computer Science & Computing
+Birla Institute of Technology and Science (BITS), Pilani
+
+Higher Secondary Education — Mathematics, Physics, Chemistry
+Velocity Junior College, Hyderabad
+
+CERTIFICATIONS
+Microsoft Azure Fundamentals (AZ-900)
+Microsoft Azure Developer Associate (AZ-204)
+AWS Cloud Practitioner
+Google IT Support
+
+
