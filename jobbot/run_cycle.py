@@ -14,9 +14,19 @@ cfg = yaml.safe_load(open(CFG_PATH, "r", encoding="utf-8"))
 def load_company_pages():
     try:
         with open("jobbot/company_list.txt", "r", encoding="utf-8") as f:
-            return [line.strip() for line in f if line.strip()]
+            pages = []
+            for line in f:
+                s = line.strip()
+                if not s:
+                    continue
+                # skip comment lines that start with '#'
+                if s.startswith("#"):
+                    continue
+                pages.append(s)
+            return pages
     except FileNotFoundError:
         return []
+
 
 def safe_jobs_deduplicate(jobs):
     seen = set()
