@@ -18,13 +18,13 @@ job_sources:
 score_threshold: 30
 
 required_keywords:
-  - azure
   - databricks
   - data factory
   - pyspark
   - spark
   - sql
   - delta lake
-  - synapse
+  - data engineer
+  - azure data engineer
 
 score_threshold: 10
