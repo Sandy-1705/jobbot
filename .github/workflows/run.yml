@@ -23,7 +23,7 @@ jobs:
 
       - name: Run JobBot
         env:
-          SMTP_USER: ${{ Sandy-1705 }}
-          SMTP_PASS: ${{ Ss@170401 }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
         run: |
           python jobbot/run_cycle.py
