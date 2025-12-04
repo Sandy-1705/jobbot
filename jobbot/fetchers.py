@@ -31,6 +31,62 @@ def requests_session_with_retries(total_retries=3, backoff=1, status_forcelist=(
 
     return s
 
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin, urlparse, unquote
+
+def fetch_linkedin_jobs(query="Azure Data Engineer", location="Hyderabad"):
+    """
+    Indirect LinkedIn scraping using Google results.
+    LinkedIn blocks direct scraping on GitHub Actions.
+    So we scrape Google for 'site:linkedin.com/jobs' results.
+    """
+    session = requests_session_with_retries()
+    google_query = f"site:linkedin.com/jobs {query} {location}"
+    url = "https://www.google.com/search"
+    params = {"q": google_query}
+
+    jobs = []
+
+    try:
+        resp = session.get(url, params=params, timeout=20)
+        resp.raise_for_status()
+    except Exception as e:
+        print("LinkedIn Google search failed:", e)
+        return []
+
+    soup = BeautifulSoup(resp.text, "html.parser")
+
+    # Google search results = <a href="/url?q=..." >
+    for a in soup.select("a"):
+        href = a.get("href", "")
+        if not href.startswith("/url?q="):
+            continue
+
+        # extract actual URL
+        real_url = href.replace("/url?q=", "").split("&")[0]
+        real_url = unquote(real_url)
+
+        # keep only LinkedIn job URLs
+        if "linkedin.com/jobs" not in real_url:
+            continue
+
+        title = a.get_text(" ", strip=True)
+        if not title:
+            title = "LinkedIn Job"
+
+        jobs.append({
+            "source": "linkedin",
+            "title": title,
+            "company": "LinkedIn",
+            "link": real_url,
+            "snippet": "Found via Google",
+            "posted_at": datetime.now(timezone.utc).isoformat()
+        })
+
+    return jobs
+
+
 # -------------------------
 # Indeed fetcher (India)
 # -------------------------
