@@ -104,10 +104,72 @@ def fetch_indeed(query="Azure Data Engineer", location="Hyderabad"):
 def fetch_company_jobs(url, session=None):
     """
     Fetch job links heuristically from a company careers page.
-    Returns a list of job dicts.
+    Only returns links that look like job postings (path contains job/careers/openings/apply/etc).
     """
     if not url:
         return []
+
+    parsed = urlparse(url)
+    if not parsed.scheme:
+        print("Skipping invalid company URL (no scheme):", url)
+        return []
+
+    if session is None:
+        session = requests_session_with_retries()
+
+    try:
+        r = session.get(url, timeout=20)
+        r.raise_for_status()
+    except Exception as e:
+        print(f"Error fetching company careers from {url}: {e}")
+        return []
+
+    try:
+        soup = BeautifulSoup(r.text, "html.parser")
+    except Exception as e:
+        print("Error parsing HTML from", url, e)
+        return []
+
+    jobs = []
+    for a in soup.select("a"):
+        href = a.get("href", "").strip()
+        text = a.get_text(" ", strip=True).strip()
+        if not href:
+            continue
+
+        # normalize relative links
+        if not href.startswith("http"):
+            try:
+                href = urljoin(url, href)
+            except Exception:
+                continue
+
+        # quickly filter out non-job links by path segment
+        job_path_indicators = ("job", "jobs", "careers", "career", "openings", "positions", "role", "apply", "vacancy")
+        parsed_href = urlparse(href)
+        if not any(ind in parsed_href.path.lower() for ind in job_path_indicators):
+            # skip links that don't look like job pages
+            continue
+
+        # Candidate title: anchor text or last path segment
+        cand_title = text or parsed_href.path.split("/")[-1].replace("-", " ").replace("_", " ")
+
+        # only consider if title contains job-like keywords
+        lowered = cand_title.lower()
+        if not any(k in lowered for k in ("data", "engineer", "analytics", "analyst", "scientist", "databricks", "azure", "etl", "spark")):
+            continue
+
+        company_domain = parsed.netloc
+        jobs.append({
+            "source": "company",
+            "title": cand_title,
+            "company": company_domain,
+            "link": href,
+            "snippet": text
+        })
+
+    return jobs
+
 
     # basic sanity check
     parsed = urlparse(url)
