@@ -1,15 +1,41 @@
 # fetchers.py
+"""
+Robust job fetchers for JobBot.
+
+Provides:
+- requests_session_with_retries(...) : HTTP session with sensible headers + retries
+- fetch_linkedin_jobs(query, location) : indirect LinkedIn discovery via Google search (no direct scraping of LinkedIn)
+- fetch_indeed(query, location)      : basic Indeed scraping (may 403 from Actions IPs)
+- fetch_company_jobs(url)            : heuristic scraping of company career pages (follows job-like links)
+
+Each fetcher returns a list of job dicts:
+{
+  "source": "company"|"indeed"|"linkedin",
+  "title": "...",
+  "company": "...",
+  "link": "...",
+  "snippet": "...",
+  "posted_at": "...",   # iso timestamp (if available)
+  "location": "..."     # optional
+}
+"""
+
+from datetime import datetime, timezone
+from urllib.parse import urljoin, urlparse, unquote
+import time
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime, timezone
-from urllib.parse import urljoin, urlparse
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 # -------------------------
-# Session with retries
+# Session with retries & friendly headers
 # -------------------------
-def requests_session_with_retries(total_retries=3, backoff=1, status_forcelist=(429, 500, 502, 503, 504)):
+def requests_session_with_retries(
+    total_retries: int = 5,
+    backoff: float = 1.0,
+    status_forcelist=(429, 500, 502, 503, 504)
+):
     s = requests.Session()
     retries = Retry(
         total=total_retries,
@@ -20,87 +46,91 @@ def requests_session_with_retries(total_retries=3, backoff=1, status_forcelist=(
     adapter = HTTPAdapter(max_retries=retries)
     s.mount("https://", adapter)
     s.mount("http://", adapter)
-    # inside requests_session_with_retries()
+
+    # Browser-like headers (helps some sites avoid trivial bot blocks)
     s.headers.update({
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Referer": "https://www.google.com/",
-})
-
-
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://www.google.com/",
+    })
     return s
 
-import requests
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse, unquote
-
-def fetch_linkedin_jobs(query="Azure Data Engineer", location="Hyderabad"):
+# -------------------------
+# LinkedIn discovery via Google search (indirect)
+# -------------------------
+def fetch_linkedin_jobs(query: str = "Azure Data Engineer", location: str = "Hyderabad"):
     """
-    Indirect LinkedIn scraping using Google results.
-    LinkedIn blocks direct scraping on GitHub Actions.
-    So we scrape Google for 'site:linkedin.com/jobs' results.
+    Discover LinkedIn job links by scraping Google search results for 'site:linkedin.com/jobs ...'
+    This avoids direct LinkedIn scraping (which is blocked aggressively).
+    Returns list of job dicts.
     """
     session = requests_session_with_retries()
     google_query = f"site:linkedin.com/jobs {query} {location}"
     url = "https://www.google.com/search"
-    params = {"q": google_query}
+    params = {"q": google_query, "num": 10}
 
     jobs = []
-
     try:
-        resp = session.get(url, params=params, timeout=20)
+        resp = session.get(url, params=params, timeout=30)
         resp.raise_for_status()
     except Exception as e:
-        print("LinkedIn Google search failed:", e)
+        print("LinkedIn (via Google) fetch failed:", e)
         return []
 
     soup = BeautifulSoup(resp.text, "html.parser")
 
-    # Google search results = <a href="/url?q=..." >
-    for a in soup.select("a"):
+    # Google search result anchors typically use /url?q=...
+    anchors = soup.select("a")
+    seen = set()
+    for a in anchors:
         href = a.get("href", "")
         if not href.startswith("/url?q="):
             continue
-
-        # extract actual URL
         real_url = href.replace("/url?q=", "").split("&")[0]
         real_url = unquote(real_url)
 
-        # keep only LinkedIn job URLs
+        # only accept linkedin job links
         if "linkedin.com/jobs" not in real_url:
             continue
 
-        title = a.get_text(" ", strip=True)
-        if not title:
-            title = "LinkedIn Job"
+        # prefer view links; filter noisy redirectors
+        if not any(x in real_url for x in ("/jobs/view", "/jobs/search", "/jobs/")):
+            # still may be useful, but skip noisy pages
+            continue
+
+        title = a.get_text(" ", strip=True) or "LinkedIn Job"
+        if real_url in seen:
+            continue
+        seen.add(real_url)
 
         jobs.append({
             "source": "linkedin",
             "title": title,
             "company": "LinkedIn",
             "link": real_url,
-            "snippet": "Found via Google",
-            "posted_at": datetime.now(timezone.utc).isoformat()
+            "snippet": "Found via Google search",
+            "posted_at": datetime.now(timezone.utc).isoformat(),
+            "location": location
         })
 
     return jobs
 
-
 # -------------------------
-# Indeed fetcher (India)
+# Indeed fetcher (simple)
 # -------------------------
-def fetch_indeed(query="Azure Data Engineer", location="Hyderabad"):
+def fetch_indeed(query: str = "Azure Data Engineer", location: str = "Hyderabad"):
     """
-    Fetch job cards from in.indeed.com search results (basic scraping).
-    Returns list of job dicts: {source, title, company, link, snippet, posted_at}
+    Basic scraping of in.indeed.com search results.
+    Note: Indeed often blocks automated requests from cloud runners; expect 403 sometimes.
     """
     base = "https://in.indeed.com/jobs"
     params = {"q": query, "l": location}
     session = requests_session_with_retries()
 
     try:
-        resp = session.get(base, params=params, timeout=20)
+        resp = session.get(base, params=params, timeout=30)
         resp.raise_for_status()
     except Exception as e:
         print("Error fetching Indeed jobs:", e)
@@ -113,11 +143,10 @@ def fetch_indeed(query="Azure Data Engineer", location="Hyderabad"):
         return []
 
     jobs = []
-    # different Indeed versions use different classes; try a few selectors
     card_selectors = [
-        ".jobsearch-SerpJobCard",  # older
-        ".result",                 # common generic
-        "a.tapItem"                # newer mobile/search
+        ".jobsearch-SerpJobCard",  # older Indeed
+        ".result",                 # generic
+        "a.tapItem",               # newer mobile layout
     ]
 
     cards = []
@@ -137,7 +166,7 @@ def fetch_indeed(query="Azure Data Engineer", location="Hyderabad"):
         company = company_tag.get_text(strip=True) if company_tag else ""
 
         # snippet/summary
-        snippet_tag = card.select_one(".job-snippet") or card.select_one(".summary")
+        snippet_tag = card.select_one(".job-snippet") or card.select_one(".summary") or card.select_one(".jobCardShelfContainer")
         snippet = snippet_tag.get_text(" ", strip=True) if snippet_tag else ""
 
         # link
@@ -145,7 +174,6 @@ def fetch_indeed(query="Azure Data Engineer", location="Hyderabad"):
         link = ""
         if link_tag and link_tag.get("href"):
             href = link_tag.get("href").strip()
-            # many Indeed links are relative
             if href.startswith("http"):
                 link = href
             else:
@@ -157,15 +185,16 @@ def fetch_indeed(query="Azure Data Engineer", location="Hyderabad"):
             "company": company,
             "link": link,
             "snippet": snippet,
-            "posted_at": datetime.now(timezone.utc).isoformat()
+            "posted_at": datetime.now(timezone.utc).isoformat(),
+            "location": location
         })
 
     return jobs
 
 # ------------------------------------------------------------
-# Fetch Azure Data Engineer jobs from company career pages (robust)
+# Fetch jobs from a company careers page (heuristic)
 # ------------------------------------------------------------
-def fetch_company_jobs(url, session=None):
+def fetch_company_jobs(url: str, session=None):
     """
     Fetch job links heuristically from a company careers page.
     Only returns links that look like job postings (path contains job/careers/openings/apply/etc).
@@ -182,7 +211,7 @@ def fetch_company_jobs(url, session=None):
         session = requests_session_with_retries()
 
     try:
-        r = session.get(url, timeout=20)
+        r = session.get(url, timeout=30)
         r.raise_for_status()
     except Exception as e:
         print(f"Error fetching company careers from {url}: {e}")
@@ -195,6 +224,8 @@ def fetch_company_jobs(url, session=None):
         return []
 
     jobs = []
+    seen_links = set()
+
     for a in soup.select("a"):
         href = a.get("href", "").strip()
         text = a.get_text(" ", strip=True).strip()
@@ -208,82 +239,71 @@ def fetch_company_jobs(url, session=None):
             except Exception:
                 continue
 
-        # quickly filter out non-job links by path segment
-        job_path_indicators = ("job", "jobs", "careers", "career", "openings", "positions", "role", "apply", "vacancy")
+        # filter out obviously non-job links by path segment
+        job_path_indicators = (
+            "job", "jobs", "careers", "career", "openings", "positions",
+            "role", "apply", "vacancy", "opportunity", "posting"
+        )
         parsed_href = urlparse(href)
         if not any(ind in parsed_href.path.lower() for ind in job_path_indicators):
-            # skip links that don't look like job pages
+            # sometimes job lists are on different domains or require JS; skip these noisy links
             continue
 
         # Candidate title: anchor text or last path segment
         cand_title = text or parsed_href.path.split("/")[-1].replace("-", " ").replace("_", " ")
 
-        # only consider if title contains job-like keywords
+        # Basic keyword filter for data/engineering-related roles
         lowered = cand_title.lower()
         if not any(k in lowered for k in ("data", "engineer", "analytics", "analyst", "scientist", "databricks", "azure", "etl", "spark")):
-            continue
+            # still allow some cases where snippet contains keywords
+            snippet_lower = (a.get("aria-label","") + " " + a.get("title","")).lower()
+            if not any(k in snippet_lower for k in ("data", "engineer", "azure")):
+                continue
 
-        company_domain = parsed.netloc
+        company_domain = parsed.netloc or urlparse(url).netloc
+        link_key = href.split("?")[0]
+        if link_key in seen_links:
+            continue
+        seen_links.add(link_key)
+
         jobs.append({
             "source": "company",
             "title": cand_title,
             "company": company_domain,
             "link": href,
-            "snippet": text
+            "snippet": text,
+            "posted_at": datetime.now(timezone.utc).isoformat(),
+            "location": ""
         })
 
     return jobs
 
+# -------------------------
+# Convenience: aggregate multiple sources (optional utility)
+# -------------------------
+def fetch_multiple_sources(query="Azure Data Engineer", location="Hyderabad", company_pages=None):
+    """
+    Helper that fetches from LinkedIn (via Google), Indeed, and a list of company pages.
+    Returns a combined list of job dicts.
+    """
+    out = []
+    try:
+        out += fetch_linkedin_jobs(query=query, location=location)
+    except Exception as e:
+        print("LinkedIn fetch failed (aggregate):", e)
 
-    # basic sanity check
-    parsed = urlparse(url)
-    if not parsed.scheme:
-        # not a proper URL, skip
-        print("Skipping invalid company URL (no scheme):", url)
-        return []
+    try:
+        out += fetch_indeed(query=query, location=location)
+    except Exception as e:
+        print("Indeed fetch failed (aggregate):", e)
 
-    if session is None:
+    if company_pages:
         session = requests_session_with_retries()
-
-    try:
-        r = session.get(url, timeout=20)
-        r.raise_for_status()
-    except Exception as e:
-        # log a concise message and return empty list
-        print(f"Error fetching company careers from {url}: {e}")
-        return []
-
-    try:
-        soup = BeautifulSoup(r.text, "html.parser")
-    except Exception as e:
-        print("Error parsing HTML from", url, e)
-        return []
-
-    jobs = []
-    for a in soup.select("a"):
-        href = a.get("href", "").strip()
-        text = a.get_text(strip=True)
-        if not href or not text:
-            continue
-
-        # normalize relative links
-        if not href.startswith("http"):
+        for u in company_pages:
             try:
-                href = urljoin(url, href)
-            except Exception:
-                continue
+                out += fetch_company_jobs(u, session=session)
+                time.sleep(1.5)  # polite pause between company pages
+            except Exception as e:
+                print("Company fetch failed for", u, e)
 
-        lowered = (text + " " + href).lower()
-        if any(keyword in lowered for keyword in [
-                "data", "engineer", "analytics", "data engineer", "azure", "cloud", "big data", "databricks"
-            ]):
-            company_domain = urlparse(url).netloc
-            jobs.append({
-                "source": "company",
-                "title": text,
-                "company": company_domain,
-                "link": href,
-                "snippet": ""
-            })
-
-    return jobs
+    return out
