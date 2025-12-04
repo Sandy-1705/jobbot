@@ -26,3 +26,5 @@ required_keywords:
   - sql
   - delta lake
   - synapse
+
+score_threshold: 10
