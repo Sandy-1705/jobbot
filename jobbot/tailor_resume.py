@@ -1,22 +1,20 @@
 # tailor_resume.py
 import yaml
 import textwrap
-import time
-import os
-from datetime import datetime
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
-from pypdf import PdfReader, PdfWriter
+from PyPDF2 import PdfReader, PdfWriter
+from datetime import datetime
+import os
 
-# Load config and master resume
+# Config / paths
 CFG_PATH = "jobbot/config.yaml"
 cfg = yaml.safe_load(open(CFG_PATH, "r", encoding="utf-8"))
-MASTER = open("jobbot/master_resume.txt", "r", encoding="utf-8").read()
 
-# Template path (the PDF you uploaded). Keep this filename as-is in the jobbot folder.
-TEMPLATE_PATH = "jobbot/Sandeep_Resume_N.pdf"
+MASTER_PDF = "jobbot/Sandeep_Resume_N.pdf"   # your master file (must exist)
+OUT_DIR = "jobbot"
 
-# terms to detect in job descriptions
+# keywords to pick from job descriptions
 TERMS = [
     "azure", "databricks", "data factory", "synapse", "delta lake",
     "pyspark", "python", "sql", "ci/cd", "etl", "spark", "data lake",
@@ -25,137 +23,142 @@ TERMS = [
 
 def extract_keywords(job):
     text = (job.get("title", "") + " " + job.get("snippet", "")).lower()
-    keywords = []
-    for t in TERMS:
-        if t in text and t not in keywords:
-            keywords.append(t)
-    return keywords
+    return [t for t in TERMS if t in text]
 
-def build_text_resume(job, keywords):
-    # Start with master resume, then append tailoring info
-    lines = []
-    lines.append(MASTER.strip())
-    lines.append("\n--- TAILORED FOR ---")
-    lines.append(f"Role: {job.get('title','')}")
-    lines.append(f"Company: {job.get('company','')}")
-    lines.append(f"Job Link: {job.get('link','')}")
-    lines.append(f"Match Score: {job.get('score',0)}")
-    if keywords:
-        lines.append("Matched Keywords: " + ", ".join(keywords))
-    lines.append("\nTailored highlights:")
-    # Add a few short tailored bullets based on detected keywords
-    if "azure" in keywords or "data factory" in keywords:
-        lines.append("- Built and maintained enterprise Azure Data Factory pipelines for ingestion and orchestration.")
-    if "databricks" in keywords or "delta lake" in keywords:
-        lines.append("- Designed Databricks notebooks and Delta Lake tables to support ACID transactions and efficient queries.")
-    if "pyspark" in keywords or "spark" in keywords:
-        lines.append("- Implemented PySpark transformations to process large datasets with performance tuning and partitioning.")
-    if "ci/cd" in keywords:
-        lines.append("- Implemented CI/CD for data pipelines using GitHub Actions for reliable deployments.")
-    # Generic strong bullets
-    lines.append("- Automated data validation, reconciliation and monitoring for reliable data quality.")
-    lines.append("- Collaborated with analytics, data science, and architecture teams to deliver production-grade data platforms.")
-    # Add timestamp
-    lines.append(f"\nGenerated: {datetime.utcnow().isoformat()} UTC")
-    return "\n".join(lines)
+def build_overlay_pdf(job, keywords, overlay_path,
+                      page_size=A4,
+                      # default coordinates and box size for summary area (tweakable)
+                      box_x=40, box_y=540, box_w=520, box_h=220,
+                      left_margin=48, top_y=None, line_height=14):
+    """
+    Create an overlay PDF page (single page) with a white box and tailored text drawn inside.
+    box_x, box_y, box_w, box_h specify the white rectangle that will hide the original text.
+    top_y is optional; if None we compute from box_y+box_h.
+    Coordinates are in points, origin (0,0) at lower-left (ReportLab default).
+    """
 
-# -----------------------
-# Overlay creation
-# -----------------------
-def create_overlay_pdf(text_resume, overlay_path):
-    """
-    Create an overlay PDF (transparent page) containing the tailored text.
-    Coordinates below are in points (origin at bottom-left).
-    You will likely need small tweaks to x,y positions to align with your specific template.
-    """
-    w, h = A4  # page size in points
-    c = canvas.Canvas(overlay_path, pagesize=A4)
+    w, h = page_size
+    if top_y is None:
+        top_y = box_y + box_h - 10
+
+    c = canvas.Canvas(overlay_path, pagesize=page_size)
+    c.setFillColorRGB(1, 1, 1)   # white
+    c.rect(box_x, box_y, box_w, box_h, fill=1, stroke=0)  # white-out area under tailored text
+
+    # Draw header
+    c.setFont("Helvetica-Bold", 14)
+    c.setFillColorRGB(0, 0, 0)
+    c.drawString(left_margin, top_y, "Tailored for this role:")
+
+    y = top_y - 22
+    c.setFont("Helvetica-Bold", 12)
+    title_line = job.get("title", "") or ""
+    c.drawString(left_margin, y, title_line)
+    y -= 18
+
     c.setFont("Helvetica", 10)
+    company_line = f"Company: {job.get('company','')}"
+    c.drawString(left_margin, y, company_line)
+    y -= 16
 
-    # --- Tuning area: starting coordinates and spacing ---
-    # These coordinates are conservative defaults — adjust after testing.
-    left_x = 48           # left margin (points)
-    y_start = h - 180     # start below top header (tune this value)
-    line_height = 12
-
-    # Write the tailored summary / highlights block
-    y = y_start
-    max_chars = 95  # rough wrap width for reportlab
-
-    # We'll split the text_resume into paragraphs and wrap each paragraph
-    for para in text_resume.split("\n\n"):
-        lines = textwrap.wrap(para, width=95) or [""]
-        for ln in lines:
-            c.drawString(left_x, y, ln)
+    # Matched keywords
+    if keywords:
+        kws = "Matched keywords: " + ", ".join(keywords)
+        wrapped = textwrap.wrap(kws, width=90)
+        for ln in wrapped:
+            c.drawString(left_margin, y, ln)
             y -= line_height
-            if y < 60:
-                c.showPage()
-                c.setFont("Helvetica", 10)
-                y = h - 50
 
+    # Tailored bullets - simple sentences to show relevant highlights
+    y -= 6
+    bullets = []
+    text_lower = (job.get("title","") + " " + job.get("snippet","")).lower()
+    if any(k in text_lower for k in ("azure", "data factory")):
+        bullets.append("• Experienced in building Azure Data Factory pipelines for ingestion and orchestration.")
+    if any(k in text_lower for k in ("databricks", "delta lake")):
+        bullets.append("• Designed Databricks notebooks and Delta Lake tables for reliable pipelines.")
+    if any(k in text_lower for k in ("pyspark", "spark")):
+        bullets.append("• Implemented PySpark transformations and performance tuning.")
+
+    # generic bullets to fill
+    bullets.append("• Strong SQL, Python, ETL, and data modeling skills across cloud platforms.")
+    bullets.append("• 5+ years experience building production data platforms, ETL and automation.")
+
+    c.setFont("Helvetica", 10)
+    for b in bullets:
+        if y < box_y + 12:  # don't overflow the white box
+            break
+        for ln in textwrap.wrap(b, width=95):
+            c.drawString(left_margin, y, ln)
+            y -= line_height
+        y -= 2
+
+    # footer small metadata
+    footer = f"Generated: {datetime.utcnow().isoformat()} UTC"
+    c.setFont("Helvetica-Oblique", 8)
+    c.drawString(left_margin, box_y + 6, footer)
+
+    c.showPage()
     c.save()
     return overlay_path
 
-# -----------------------
-# Merge overlay with template
-# -----------------------
-def merge_with_template(overlay_path, template_path=TEMPLATE_PATH, output_path=None):
+def merge_overlay_with_master(overlay_path, master_path, out_path):
     """
-    Merge overlay PDF on top of the template PDF.
-    Returns the output_path (created file).
+    Merge single-page overlay with first page of master_path, keep other pages as-is.
+    overlay_path: PDF with same page size (generated by ReportLab)
     """
-    if not os.path.exists(template_path):
-        raise FileNotFoundError(f"Template not found at {template_path}. Upload your resume PDF as that filename.")
-
-    reader_template = PdfReader(template_path)
     reader_overlay = PdfReader(overlay_path)
-
+    reader_master = PdfReader(master_path)
     writer = PdfWriter()
 
-    # For single-page templates: merge the first page
-    base = reader_template.pages[0]
-    over = reader_overlay.pages[0]
+    # Merge overlay onto the first page
+    master_first = reader_master.pages[0]
+    overlay_page = reader_overlay.pages[0]
 
-    # merge_page modifies base in place: overlay on top
-    base.merge_page(over)
-    writer.add_page(base)
-
-    # If template has multiple pages, you can append remaining pages unchanged:
-    # for p in reader_template.pages[1:]:
-    #     writer.add_page(p)
-
-    if output_path is None:
-        ts = int(time.time())
-        output_path = f"jobbot/tailored_resume_{ts}.pdf"
-
-    with open(output_path, "wb") as f:
-        writer.write(f)
-
-    return output_path
-
-# -----------------------
-# Public generator
-# -----------------------
-def generate_for_job(job):
-    """
-    Given a job dict, return (text_resume, pdf_path).
-    pdf_path is a final PDF file path stored under jobbot/.
-    """
-    keywords = extract_keywords(job)
-    text_resume = build_text_resume(job, keywords)
-
-    # overlay + merge
-    ts = int(time.time())
-    overlay_path = f"jobbot/overlay_{ts}.pdf"
-    final_path = f"jobbot/tailored_resume_{ts}.pdf"
-
-    create_overlay_pdf(text_resume, overlay_path)
-    final_pdf = merge_with_template(overlay_path, template_path=TEMPLATE_PATH, output_path=final_path)
-
-    # cleanup overlay if you want (optional)
+    # Merge: overlay on top of master => we add master page first, then merge overlay on top
+    # PyPDF2 supports merge_page on page object
     try:
-        os.remove(overlay_path)
-    except:
+        master_first.merge_page(overlay_page)   # overlay drawn on top of master
+    except Exception:
+        # alternate try: combine by adding overlay then master? But merge_page should work.
         pass
 
-    return text_resume, final_pdf
+    writer.add_page(master_first)
+
+    # append remaining master pages unchanged
+    for p in reader_master.pages[1:]:
+        writer.add_page(p)
+
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    with open(out_path, "wb") as f:
+        writer.write(f)
+    return out_path
+
+def generate_tailored_copy(job):
+    """
+    Main function called by run_cycle. Produces (text_summary, pdf_path).
+    """
+    keywords = extract_keywords(job)
+    # make safe filename
+    title = job.get("title","").strip().replace(" ", "_")[:40]
+    company = job.get("company","").strip().replace(" ", "_")[:30]
+    ts = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+    out_name = f"tailored_resume_{title}_{company}_{ts}.pdf"
+    out_path = os.path.join(OUT_DIR, out_name)
+
+    overlay_tmp = os.path.join(OUT_DIR, f"overlay_{ts}.pdf")
+    build_overlay_pdf(job, keywords, overlay_tmp,
+                      # Tweak these defaults if the overlay does not align with your template.
+                      box_x=40, box_y=520, box_w=520, box_h=240,
+                      left_margin=48, line_height=14)
+
+    final = merge_overlay_with_master(overlay_tmp, MASTER_PDF, out_path)
+
+    # cleanup overlay (optional)
+    try:
+        os.remove(overlay_tmp)
+    except Exception:
+        pass
+
+    text_summary = f"Tailored summary for {job.get('title','')} at {job.get('company','')}. Matched: {', '.join(keywords)}"
+    return text_summary, final
