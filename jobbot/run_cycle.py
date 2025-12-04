@@ -154,6 +154,25 @@ def main_once():
         except Exception as e:
             print("Failed to process job:", job.get("title"), job.get("company"), e)
 
+
+        # DEBUG: if nothing sent, create a test tailored PDF for verification.
+    if sent_count == 0:
+        print("No emails sent — creating a sample tailored PDF for verification.")
+        test_job = {
+            "title": "Senior Azure Data Engineer (Test)",
+            "company": "TestCompany",
+            "link": "https://example.com/test-job",
+            "snippet": "Azure Databricks Data Factory PySpark ETL SQL",
+            "score": 99,
+            "location": "Hyderabad"
+        }
+        try:
+            text_resume, pdf_path = generate_tailored_copy(test_job)
+            print("Created test PDF at:", pdf_path)
+        except Exception as e:
+            print("Failed to create test PDF:", e)
+
+
     print(f"Run complete. Emails sent: {sent_count}")
 
 if __name__ == "__main__":
